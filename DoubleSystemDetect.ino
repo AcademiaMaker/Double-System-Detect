@@ -1,134 +1,94 @@
-/* Estados Picker */
-int contador_Picker;
-bool estado_SensorOptico;
-int estado_SensorDistancia;
+/*
+    Desarrollando la version V. 1.1
+    Sistemas de doble deteccion para dispensadores de ATM
+    Funcionamiento de un picker
+*/
+// Constantes de Entrada de Sensores
+#define sensorDistancia 1
+#define sensorOptico 2
 
-/* Contadores Rutinas */
-int miskpick;
-int Long;
-int early_double;
+//  Constantes de salida de Actuadores
+#define motorSteep 3
 
-/* Sensores */
-int sensor_Opticos = 1;
-int sensor_Distancia = 2;
+//  Lecturas de Sensores leidos
+int Distancia;
+bool Optico;
 
-/* Salida de Motores */ 
-int motor_picker = 3;
-void setup()
-{
-	pinMode(sensor_Opticos, INPUT);
-    pinMode(sensor_Distancia, INPUT);
+// Estados de Validacion
+int estado_validacion1;
+bool estado_validacion2;
 
-    pinMode(motor_picker, OUTPUT);
+void setup(){
+
+    pinMode(sensorDistancia, INPUT);
+    pinMode(sensorOptico, INPUT);
+
+    pinMode(motorSteep, OUTPUT);
+}
+void loop(){
+    lectura_Sensores();
+    feedShaft(Distancia, Optico);
+    validacion_grosor(Distancia, Optico);
+    validacion_alto(Distancia);
 }
 
-void loop()
-{   
-    lectura_sensores();
-    if (estado_SensorOptico == false)
+//  Se crearon las funciones para la rutina automatica del picker del dispensador del ATM
+void lectura_Sensores(){
+    Distancia = analogRead(sensorDistancia);
+    Optico = digitalRead(sensorOptico);
+}
+
+void feedShaft(int DistanciaFS, bool OpticoFS){
+    if (OpticoFS == !Optico)
     {
-        if (estado_SensorDistancia <= 0)
+        while (DistanciaFS <= 0)
         {
-            motores_activos_feedshaft(estado_SensorOptico);
+            digitalWrite(motorSteep, HIGH);
+            delayMicroseconds(5);
+            lectura_Sensores();
+            DistanciaFS = Distancia;
+
         }
-        
-    }
-    
-}
+        lectura_Sensores();
 
-void lectura_sensores(){
-    estado_SensorOptico = digitalRead(sensor_Opticos);
-    estado_SensorDistancia = analogRead(sensor_Distancia);
-}
-
-void motores_activos_feedshaft(bool SensorOptico){
-    bool estado_grosor;
-    bool estado_largo;
-    while (SensorOptico == false)
-    {
-        motor_picker = HIGH;
-        lectura_sensores();
-        estado_grosor = validacion_grosor_billetes(estado_SensorDistancia);
-        estado_largo = validacion_largo_billetes(estado_SensorDistancia);
-        SensorOptico = estado_SensorOptico;
-    }
-    motor_picker = LOW;
-    condicionales_Funcionamiento(estado_grosor, estado_largo);
-        
-}
-
-
-bool validacion_grosor_billetes(int grosor_billetes){
-    bool estado;
-    if (grosor_billetes <= 5 )
-    {
-        estado = true;
-    }
-    if (grosor_billetes >= 5)
-    {
-        estado = false;
-    }
-    
-    return estado;
-}
-
-bool validacion_largo_billetes(int largo_billetes){
-    bool estado;
-    int estado_sensor;
-    bool conversion;
-    int contador;
-
-    if (largo_billetes > 0)
-    {
-        conversion = true;
-    }
-    while (conversion == true)
-    {
-        contador = +1;
-        lectura_sensores();
-        estado_sensor = estado_SensorDistancia;
-        if (estado_sensor <= 0)
+        if (DistanciaFS > 0 and Optico == false)
         {
-            conversion = false;
-        } 
+            
+        }
+                
+    }  
+    digitalWrite(motorSteep, LOW);
+    
+}
+//Sistema de validacion de grosor del Billete, si estas no se cumplen se suman a las rutinas de comportamiento
+int validacion_grosor(int DistanciaVG, int OpticoVG){
+    int estado_Rutina;
+    if (DistanciaVG > 3 and DistanciaVG < 5)
+    {
+        estado_Rutina = 1;
+    }
+    else if (DistanciaVG > 5)
+    {
+        estado_Rutina = 2;
+    }
+    else if (DistanciaVG <= 0 and OpticoVG == true)
+    {
+        estado_Rutina = 3;
     }
     
-    if (contador >= 5 and contador <= 7) 
-    {
-        estado = true;
-    }
-    else
-    {
-        estado = false;
-    }
-    return estado;
+    return estado_Rutina;
 }
 
-void condicionales_Funcionamiento(bool estado_grosor, bool estado_largo){
-    if (estado_grosor == true and estado_largo == true)
-    {
-        contador_Picker = contador_Picker + 1;
-    }
-    if (estado_grosor == true and estado_largo == false)
-    {
-        contador_Picker = contador_Picker;
-        Long = +1;
-    }
-    if (estado_grosor == false and estado_largo == true)
-    {
-        contador_Picker = contador_Picker;
-        early_double = +1;
-        miskpick = +1;
-    }
-    if (estado_grosor == false and estado_largo == false)
-    {
-        contador_Picker = contador_Picker;
-        early_double = +1;
-        miskpick = +1;
-        Long = +1;
-    }
-    printf("Miskpick ", miskpick);
-    printf("Early Double ", early_double);
-    printf("Long ", Long);
-    
+int validacion_alto(int DistanciaVA){
+    static long tiempo;
+    int valor_ideal = 64;
+    int estado_Rutina;
+    if (DistanciaVA > 0){
+        tiempo = micros();
+        if (DistanciaVA <= 0 and tiempo == valor_ideal)
+        {
+            estado_Rutina = 1;
+        }
+    }   
+
 }
